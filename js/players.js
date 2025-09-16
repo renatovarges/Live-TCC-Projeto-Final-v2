@@ -124,63 +124,9 @@ function processPlayersData(rawData) {
   }).filter(player => player.nome && player.clube); // Remove entradas vazias
 }
 
-// Função para buscar dados da API do Cartola
-async function fetchCartolaAPI() {
-  try {
-    // Verificar status do mercado primeiro (com timeout de 5 segundos)
-    const statusController = new AbortController();
-    const statusTimeout = setTimeout(() => statusController.abort(), 5000);
-    
-    // Usar a função Netlify como proxy para evitar problemas de CORS
-    const statusResponse = await fetch('/api/cartola/mercado/status', {
-      signal: statusController.signal
-    });
-    clearTimeout(statusTimeout);
-    
-    if (statusResponse.ok) {
-      const statusData = await statusResponse.json();
-      lastUpdateTime = new Date(); // Definir o tempo antes de atualizar o status
-      updateMarketStatus(statusData);
-      
-      if (statusData.status_mercado !== 1) {
-        console.log('Mercado fechado - usando dados em cache');
-        // Ainda tenta buscar os dados mesmo com mercado fechado
-      }
-    }
-    
-    // Buscar dados dos atletas (com timeout de 10 segundos)
-    const dataController = new AbortController();
-    const dataTimeout = setTimeout(() => dataController.abort(), 10000);
-    
-    // Usar a função Netlify como proxy para evitar problemas de CORS
-    const response = await fetch('/api/cartola/atletas/mercado', {
-      signal: dataController.signal
-    });
-    clearTimeout(dataTimeout);
-    
-    if (!response.ok) throw new Error('Erro ao buscar dados da API');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.warn('Timeout na API do Cartola (muito lenta), usando CSV como fallback');
-    } else {
-      console.warn('Erro ao buscar API do Cartola, usando CSV como fallback:', error);
-    }
-    return null;
-  }
-}
+// Função fetchCartolaAPI duplicada removida - mantendo apenas a versão principal
 
-function updateMarketStatus(statusData) {
-  const updateElement = document.getElementById('last-update');
-  if (updateElement && statusData) {
-    // A API retorna status_mercado: 1 (aberto) ou 2 (fechado)
-    const isMarketOpen = statusData.status_mercado === 1;
-    const marketStatus = isMarketOpen ? '🟢 Mercado Aberto' : '🔴 Mercado Fechado';
-    const timeString = lastUpdateTime ? lastUpdateTime.toLocaleTimeString('pt-BR') : '';
-    updateElement.innerHTML = `${marketStatus}<br><small>Última atualização: ${timeString}</small>`;
-  }
-}
+// Função updateMarketStatus duplicada removida - mantendo apenas a versão principal
 
 // Mapeamento de IDs dos clubes da API para slugs locais
 const API_CLUB_MAPPING = {
@@ -216,37 +162,7 @@ const API_POSITION_MAPPING = {
   6: 'TEC'  // Técnico
 };
 
-// Função para processar dados da API do Cartola
-function processCartolaData(apiData) {
-  if (!apiData || !apiData.atletas) return [];
-  
-  const players = [];
-  
-  Object.values(apiData.atletas).forEach(atleta => {
-    const clubeId = atleta.clube_id;
-    const clubeSlug = API_CLUB_MAPPING[clubeId];
-    
-    if (clubeSlug && apiData.clubes[clubeId]) {
-      const clube = apiData.clubes[clubeId];
-      const posicao = API_POSITION_MAPPING[atleta.posicao_id] || 'MEI';
-      
-      players.push({
-        nome: atleta.apelido || atleta.nome,
-        clube: clube.nome_fantasia || clube.nome,
-        clubeSlug: clubeSlug,
-        posicao: posicao,
-        preco: atleta.preco_num.toFixed(2), // Preço já vem em reais
-        media: atleta.media_num ? atleta.media_num.toFixed(2) : '0.00',
-        variacao: atleta.variacao_num ? (atleta.variacao_num / 100).toFixed(2) : '0.00',
-        jogos: atleta.jogos_num || 0,
-        status: atleta.status_id,
-        foto: atleta.foto
-      });
-    }
-  });
-  
-  return players;
-}
+// Função processCartolaData duplicada removida - mantendo apenas a versão principal
 
 // Variável para controlar o intervalo de atualização
 // Variáveis globais movidas para evitar duplicação
