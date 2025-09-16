@@ -253,98 +253,10 @@ let updateInterval = null;
 let lastUpdateTime = null;
 
 // Carrega dados automaticamente (API primeiro, CSV como fallback)
-async function autoLoadData() {
-  await loadData();
-  
-  // Iniciar atualização automática a cada 5 minutos
-  if (updateInterval) {
-    clearInterval(updateInterval);
-  }
-  
-  updateInterval = setInterval(async () => {
-    console.log('Atualizando dados automaticamente...');
-    await loadData();
-  }, 30 * 60 * 1000); // 30 minutos
-}
+// Função duplicada removida - mantendo apenas a versão principal
 
-async function loadData() {
-  // Atualizar status para "carregando"
-  const updateElement = document.getElementById('last-update');
-  if (updateElement) {
-    updateElement.innerHTML = '🔄 Carregando dados...';
-  }
-  
-  try {
-    console.log('Tentando carregar dados da API do Cartola...');
-    if (updateElement) {
-      updateElement.innerHTML = '🔄 Conectando à API do Cartola...';
-    }
-    
-    const apiData = await fetchCartolaAPI();
-    
-    if (apiData && apiData.atletas) {
-      console.log('Dados da API carregados com sucesso!');
-      if (updateElement) {
-        updateElement.innerHTML = '🔄 Processando dados...';
-      }
-      
-      const processedData = processCartolaData(apiData);
-      STATE.players = processedData;
-      lastUpdateTime = new Date();
-      console.log(`${processedData.length} jogadores carregados da API`);
-      
-      // Restaurar o status do mercado após processamento
-      if (updateElement) {
-        // Buscar novamente o status para restaurar as bolinhas
-        try {
-          const statusResponse = await fetch('/api/cartola/mercado/status');
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            updateMarketStatus(statusData);
-          }
-        } catch (error) {
-          // Se falhar, mostrar apenas o horário
-          const timeString = lastUpdateTime.toLocaleTimeString('pt-BR');
-          updateElement.innerHTML = `<small>Última atualização: ${timeString}</small>`;
-        }
-      }
-      
-      // Disparar evento personalizado para notificar que os dados foram carregados
-      window.dispatchEvent(new CustomEvent('playersLoaded', { detail: processedData }));
-      return;
-    }
-  } catch (error) {
-    console.warn('Erro ao carregar API do Cartola:', error);
-  }
-  
-  // Fallback para CSV se a API falhar
-  console.log('Carregando dados do CSV como fallback...');
-  if (updateElement) {
-    updateElement.innerHTML = '🔄 Carregando dados locais...';
-  }
-  
-  try {
-    const response = await fetch('./cartola_jogadores_time_posicao_preco.csv');
-    const text = await response.text();
-    const rawData = parseCSV(text);
-    const processedData = processPlayersData(rawData);
-    STATE.players = processedData;
-    lastUpdateTime = new Date();
-    
-    // Quando usar CSV, mostrar status de dados locais
-    if (updateElement) {
-      const timeString = lastUpdateTime.toLocaleTimeString('pt-BR');
-      updateElement.innerHTML = `📁 Dados Locais (CSV)<br><small>Última atualização: ${timeString}</small>`;
-    }
-    
-    console.log(`${processedData.length} jogadores carregados do CSV`);
-    
-    // Disparar evento personalizado para notificar que os dados foram carregados
-    window.dispatchEvent(new CustomEvent('playersLoaded', { detail: processedData }));
-  } catch (error) {
-    console.error('Erro ao carregar CSV:', error);
-  }
-}
+// Esta função loadData foi movida para evitar duplicação
+// Função loadData duplicada removida - mantendo apenas a versão principal acima
 
 function updateLastUpdateDisplay() {
   const updateElement = document.getElementById('last-update');
