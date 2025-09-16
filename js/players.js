@@ -162,47 +162,85 @@ function updateLastUpdateDisplay() {
 
 // Função para buscar dados da API do Cartola
 async function fetchCartolaAPI() {
+  console.log('🔄 Iniciando busca de dados da API do Cartola...');
+  
   try {
-    // Verificar status do mercado primeiro (com timeout de 5 segundos)
+    // Verificar status do mercado primeiro (com timeout de 8 segundos)
+    console.log('📊 Verificando status do mercado...');
     const statusController = new AbortController();
-    const statusTimeout = setTimeout(() => statusController.abort(), 5000);
+    const statusTimeout = setTimeout(() => statusController.abort(), 8000);
     
     // Usar a função Netlify como proxy para evitar problemas de CORS
     const statusResponse = await fetch('/api/cartola?endpoint=mercado/status', {
-      signal: statusController.signal
+      signal: statusController.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     });
     clearTimeout(statusTimeout);
     
+    console.log(`📊 Status response: ${statusResponse.status} ${statusResponse.statusText}`);
+    
     if (statusResponse.ok) {
       const statusData = await statusResponse.json();
+      console.log('✅ Status do mercado obtido:', statusData);
       lastUpdateTime = new Date(); // Definir o tempo antes de atualizar o status
       updateMarketStatus(statusData);
       
       if (statusData.status_mercado !== 1) {
-        console.log('Mercado fechado - usando dados em cache');
-        // Ainda tenta buscar os dados mesmo com mercado fechado
+        console.log('🔴 Mercado fechado - tentando buscar dados mesmo assim');
+      } else {
+        console.log('🟢 Mercado aberto - buscando dados atualizados');
       }
+    } else {
+      console.warn('⚠️ Não foi possível verificar status do mercado');
     }
     
-    // Buscar dados dos atletas (com timeout de 10 segundos)
+    // Buscar dados dos atletas (com timeout de 15 segundos)
+    console.log('👥 Buscando dados dos atletas...');
     const dataController = new AbortController();
-    const dataTimeout = setTimeout(() => dataController.abort(), 10000);
+    const dataTimeout = setTimeout(() => dataController.abort(), 15000);
     
     // Usar a função Netlify como proxy para evitar problemas de CORS
     const response = await fetch('/api/cartola?endpoint=atletas/mercado', {
-      signal: dataController.signal
+      signal: dataController.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
     });
     clearTimeout(dataTimeout);
     
-    if (!response.ok) throw new Error('Erro ao buscar dados da API');
+    console.log(`👥 Atletas response: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erro na resposta da API:', errorText);
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
+    console.log('✅ Dados da API carregados com sucesso!', {
+      atletas: Object.keys(data.atletas || {}).length,
+      clubes: Object.keys(data.clubes || {}).length,
+      posicoes: Object.keys(data.posicoes || {}).length
+    });
+    
     return data;
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.warn('Timeout na API do Cartola (muito lenta), usando CSV como fallback');
+      console.warn('⏱️ Timeout na API do Cartola (muito lenta), usando CSV como fallback');
     } else {
-      console.warn('Erro ao buscar API do Cartola, usando CSV como fallback:', error);
+      console.warn('❌ Erro ao buscar API do Cartola, usando CSV como fallback:', error);
     }
+    
+    // Mostrar mensagem de erro para o usuário
+    const updateElement = document.getElementById('last-update');
+    if (updateElement) {
+      updateElement.innerHTML = '📁 Usando dados locais (API indisponível)<br><small>Clique em "Atualizar Preços" para tentar novamente</small>';
+    }
+    
     return null;
   }
 }
