@@ -367,6 +367,249 @@ function forceUpdate() {
   loadData();
 }
 
+// Função para buscar dados da API do Cartola
+async function fetchCartolaAPI() {
+  try {
+    // Verificar status do mercado primeiro (com timeout de 5 segundos)
+    const statusController = new AbortController();
+    const statusTimeout = setTimeout(() => statusController.abort(), 5000);
+    
+    // Usar a função Netlify como proxy para evitar problemas de CORS
+    const statusResponse = await fetch('/api/cartola/mercado/status', {
+      signal: statusController.signal
+    });
+    clearTimeout(statusTimeout);
+    
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      lastUpdateTime = new Date(); // Definir o tempo antes de atualizar o status
+      updateMarketStatus(statusData);
+      
+      if (statusData.status_mercado !== 1) {
+        console.log('Mercado fechado - usando dados em cache');
+        // Ainda tenta buscar os dados mesmo com mercado fechado
+      }
+    }
+    
+    // Buscar dados dos atletas (com timeout de 10 segundos)
+    const dataController = new AbortController();
+    const dataTimeout = setTimeout(() => dataController.abort(), 10000);
+    
+    // Usar a função Netlify como proxy para evitar problemas de CORS
+    const response = await fetch('/api/cartola/atletas/mercado', {
+      signal: dataController.signal
+    });
+    clearTimeout(dataTimeout);
+    
+    if (!response.ok) throw new Error('Erro ao buscar dados da API');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.warn('Timeout na API do Cartola (muito lenta), usando CSV como fallback');
+    } else {
+      console.warn('Erro ao buscar API do Cartola, usando CSV como fallback:', error);
+    }
+    return null;
+  }
+}
+
+function updateMarketStatus(statusData) {
+  const updateElement = document.getElementById('last-update');
+  if (updateElement && statusData) {
+    // A API retorna status_mercado: 1 (aberto) ou 2 (fechado)
+    const isMarketOpen = statusData.status_mercado === 1;
+    const marketStatus = isMarketOpen ? '🟢 Mercado Aberto' : '🔴 Mercado Fechado';
+    const timeString = lastUpdateTime ? lastUpdateTime.toLocaleTimeString('pt-BR') : '';
+    updateElement.innerHTML = `${marketStatus}<br><small>Última atualização: ${timeString}</small>`;
+  }
+}
+
+// Mapeamento de IDs dos clubes da API para slugs locais
+const API_CLUB_MAPPING = {
+  262: 'flamengo',
+  263: 'botafogo', 
+  264: 'corinthians',
+  265: 'bahia',
+  266: 'fluminense',
+  267: 'vasco',
+  275: 'palmeiras',
+  276: 'sao-paulo',
+  277: 'santos',
+  285: 'atletico-mg',
+  293: 'gremio',
+  294: 'internacional',
+  356: 'fortaleza',
+  373: 'cruzeiro',
+  1371: 'juventude',
+  1372: 'ceara',
+  1373: 'sport',
+  1376: 'vitoria',
+  1377: 'red-bull-bragantino',
+  2305: 'mirassol'
+};
+
+// Mapeamento de posições da API
+const API_POSITION_MAPPING = {
+  1: 'GOL', // Goleiro
+  2: 'LAT', // Lateral
+  3: 'ZAG', // Zagueiro
+  4: 'MEI', // Meia
+  5: 'ATA', // Atacante
+  6: 'TEC'  // Técnico
+};
+
+// Função para processar dados da API do Cartola
+function processCartolaData(apiData) {
+  if (!apiData || !apiData.atletas) return [];
+  
+  const players = [];
+  
+  Object.values(apiData.atletas).forEach(atleta => {
+    const clubeId = atleta.clube_id;
+    const clubeSlug = API_CLUB_MAPPING[clubeId];
+    
+    if (clubeSlug && apiData.clubes[clubeId]) {
+      const clube = apiData.clubes[clubeId];
+      const posicao = API_POSITION_MAPPING[atleta.posicao_id] || 'MEI';
+      
+      players.push({
+        nome: atleta.apelido || atleta.nome,
+        clube: clube.nome_fantasia || clube.nome,
+        clubeSlug: clubeSlug,
+        posicao: posicao,
+        preco: atleta.preco_num.toFixed(2), // Preço já vem em reais
+        media: atleta.media_num ? atleta.media_num.toFixed(2) : '0.00',
+        variacao: atleta.variacao_num ? (atleta.variacao_num / 100).toFixed(2) : '0.00',
+        jogos: atleta.jogos_num || 0,
+        status: atleta.status_id,
+        foto: atleta.foto
+      });
+    }
+  });
+  
+  return players;
+}
+
+// Variável para controlar o intervalo de atualização
+let updateInterval = null;
+let lastUpdateTime = null;
+
+// Carrega dados automaticamente (API primeiro, CSV como fallback)
+async function autoLoadData() {
+  await loadData();
+  
+  // Iniciar atualização automática a cada 5 minutos
+  if (updateInterval) {
+    clearInterval(updateInterval);
+  }
+  
+  updateInterval = setInterval(async () => {
+    console.log('Atualizando dados automaticamente...');
+    await loadData();
+  }, 30 * 60 * 1000); // 30 minutos
+}
+
+async function loadData() {
+  // Atualizar status para "carregando"
+  const updateElement = document.getElementById('last-update');
+  if (updateElement) {
+    updateElement.innerHTML = '🔄 Carregando dados...';
+  }
+  
+  try {
+    console.log('Tentando carregar dados da API do Cartola...');
+    if (updateElement) {
+      updateElement.innerHTML = '🔄 Conectando à API do Cartola...';
+    }
+    
+    const apiData = await fetchCartolaAPI();
+    
+    if (apiData && apiData.atletas) {
+      console.log('Dados da API carregados com sucesso!');
+      if (updateElement) {
+        updateElement.innerHTML = '🔄 Processando dados...';
+      }
+      
+      const processedData = processCartolaData(apiData);
+      STATE.players = processedData;
+      lastUpdateTime = new Date();
+      console.log(`${processedData.length} jogadores carregados da API`);
+      
+      // Restaurar o status do mercado após processamento
+      if (updateElement) {
+        // Buscar novamente o status para restaurar as bolinhas
+        try {
+          const statusResponse = await fetch('/api/cartola/mercado/status');
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            updateMarketStatus(statusData);
+          }
+        } catch (error) {
+          // Se falhar, mostrar apenas o horário
+          const timeString = lastUpdateTime.toLocaleTimeString('pt-BR');
+          updateElement.innerHTML = `<small>Última atualização: ${timeString}</small>`;
+        }
+      }
+      
+      // Disparar evento personalizado para notificar que os dados foram carregados
+      window.dispatchEvent(new CustomEvent('playersLoaded', { detail: processedData }));
+      return;
+    }
+  } catch (error) {
+    console.warn('Erro ao carregar API do Cartola:', error);
+  }
+  
+  // Fallback para CSV se a API falhar
+  console.log('Carregando dados do CSV como fallback...');
+  if (updateElement) {
+    updateElement.innerHTML = '🔄 Carregando dados locais...';
+  }
+  
+  try {
+    const response = await fetch('./cartola_jogadores_time_posicao_preco.csv');
+    const text = await response.text();
+    const rawData = parseCSV(text);
+    const processedData = processPlayersData(rawData);
+    STATE.players = processedData;
+    lastUpdateTime = new Date();
+    
+    // Quando usar CSV, mostrar status de dados locais
+    if (updateElement) {
+      const timeString = lastUpdateTime.toLocaleTimeString('pt-BR');
+      updateElement.innerHTML = `📁 Dados Locais (CSV)<br><small>Última atualização: ${timeString}</small>`;
+    }
+    
+    console.log(`${processedData.length} jogadores carregados do CSV`);
+    
+    // Disparar evento personalizado para notificar que os dados foram carregados
+    window.dispatchEvent(new CustomEvent('playersLoaded', { detail: processedData }));
+  } catch (error) {
+    console.error('Erro ao carregar CSV:', error);
+  }
+}
+
+function updateLastUpdateDisplay() {
+  const updateElement = document.getElementById('last-update');
+  if (updateElement && lastUpdateTime) {
+    const timeString = lastUpdateTime.toLocaleTimeString('pt-BR');
+    // Se não temos status do mercado, mostrar apenas a hora
+    if (!updateElement.innerHTML.includes('Mercado')) {
+      updateElement.innerHTML = `<small>Última atualização: ${timeString}</small>`;
+    } else {
+      // Atualizar apenas a parte do tempo, mantendo o status do mercado
+      const currentHTML = updateElement.innerHTML;
+      const updatedHTML = currentHTML.replace(/Última atualização: .*<\/small>/, `Última atualização: ${timeString}</small>`);
+      updateElement.innerHTML = updatedHTML;
+    }
+  }
+}
+
+function forceUpdate() {
+  console.log('Forçando atualização manual...');
+  loadData();
+}
+
 function addSelected(pos, player){
   const list = STATE.selected[pos];
   if(!list.some(p=>p.nome===player.nome && p.clube===player.clube)){
