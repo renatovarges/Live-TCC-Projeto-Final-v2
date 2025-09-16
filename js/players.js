@@ -249,9 +249,7 @@ function processCartolaData(apiData) {
 }
 
 // Variável para controlar o intervalo de atualização
-let updateInterval = null;
-let lastUpdateTime = null;
-
+// Variáveis globais movidas para evitar duplicação
 // Carrega dados automaticamente (API primeiro, CSV como fallback)
 // Função duplicada removida - mantendo apenas a versão principal
 
@@ -274,10 +272,7 @@ function updateLastUpdateDisplay() {
   }
 }
 
-function forceUpdate() {
-  console.log('Forçando atualização manual...');
-  loadData();
-}
+// Função forceUpdate duplicada removida - mantendo apenas a versão principal
 
 // Função para buscar dados da API do Cartola
 async function fetchCartolaAPI() {
