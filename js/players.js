@@ -130,15 +130,7 @@ function processPlayersData(rawData) {
 
 // Mapeamento duplicado removido - usando apenas a primeira declaração
 
-// Mapeamento de posições da API
-const API_POSITION_MAPPING = {
-  1: 'GOL', // Goleiro
-  2: 'LAT', // Lateral
-  3: 'ZAG', // Zagueiro
-  4: 'MEI', // Meia
-  5: 'ATA', // Atacante
-  6: 'TEC'  // Técnico
-};
+// Mapeamento de posições da API duplicado removido - usando apenas a primeira declaração
 
 // Função processCartolaData duplicada removida - mantendo apenas a versão principal
 
