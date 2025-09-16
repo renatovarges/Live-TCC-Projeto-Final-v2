@@ -128,29 +128,7 @@ function processPlayersData(rawData) {
 
 // Função updateMarketStatus duplicada removida - mantendo apenas a versão principal
 
-// Mapeamento de IDs dos clubes da API para slugs locais
-const API_CLUB_MAPPING = {
-  262: 'flamengo',
-  263: 'botafogo', 
-  264: 'corinthians',
-  265: 'bahia',
-  266: 'fluminense',
-  267: 'vasco',
-  275: 'palmeiras',
-  276: 'sao-paulo',
-  277: 'santos',
-  285: 'atletico-mg',
-  293: 'gremio',
-  294: 'internacional',
-  356: 'fortaleza',
-  373: 'cruzeiro',
-  1371: 'juventude',
-  1372: 'ceara',
-  1373: 'sport',
-  1376: 'vitoria',
-  1377: 'red-bull-bragantino',
-  2305: 'mirassol'
-};
+// Mapeamento duplicado removido - usando apenas a primeira declaração
 
 // Mapeamento de posições da API
 const API_POSITION_MAPPING = {
